@@ -2,8 +2,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { recentLogsData, type Log } from "@/lib/data";
 
-const statusVariantMap: { [key in Log['status']]: 'default' | 'destructive' | 'secondary' | 'outline' } = {
-    Success: 'default',
+const statusVariantMap: { [key in Log['status']]: 'success' | 'destructive' | 'secondary' | 'outline' } = {
+    Success: 'success',
     Failed: 'destructive',
     Suspicious: 'destructive',
     Info: 'secondary'

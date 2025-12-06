@@ -6,8 +6,8 @@ import { ArrowUpRight } from "lucide-react";
 import Link from 'next/link';
 import { recentLogsData, type Log } from "@/lib/data";
 
-const statusVariantMap: { [key in Log['status']]: 'default' | 'destructive' | 'secondary' | 'outline' } = {
-    Success: 'default',
+const statusVariantMap: { [key in Log['status']]: 'success' | 'destructive' | 'secondary' | 'outline' } = {
+    Success: 'success',
     Failed: 'destructive',
     Suspicious: 'destructive',
     Info: 'secondary'

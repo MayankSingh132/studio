@@ -30,7 +30,7 @@ export function SecurityFeatures() {
             <h2 className="text-2xl font-bold mb-4">Core Security Modules</h2>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 {features.map((feature) => (
-                    <Card key={feature.title} className="flex flex-col">
+                    <Card key={feature.title} className="flex flex-col transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
                         <CardHeader>
                             <div className="flex items-center gap-3">
                                 <feature.icon className="w-8 h-8 text-primary" />

@@ -12,14 +12,17 @@ export function OverviewStats() {
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {stats.map((stat, index) => (
-                <Card key={index} className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                <Card 
+                    key={index} 
+                    className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:bg-primary hover:text-primary-foreground group"
+                >
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-                        <stat.icon className="h-4 w-4 text-muted-foreground" />
+                        <stat.icon className="h-4 w-4 text-muted-foreground group-hover:text-primary-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{stat.value}</div>
-                        <p className="text-xs text-muted-foreground">{stat.change} from last month</p>
+                        <p className="text-xs text-muted-foreground group-hover:text-primary-foreground/80">{stat.change} from last month</p>
                     </CardContent>
                 </Card>
             ))}

@@ -1,0 +1,264 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the Guardian OS system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "username": {
+          "type": "string",
+          "description": "The username of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the user.",
+          "format": "email"
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The first name of the user."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The last name of the user."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the user account was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the user account was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "username",
+        "email",
+        "firstName",
+        "lastName",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Session": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Session",
+      "type": "object",
+      "description": "Represents a user session within the Guardian OS system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Session entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Session)"
+        },
+        "sessionStart": {
+          "type": "string",
+          "description": "Timestamp indicating when the session started.",
+          "format": "date-time"
+        },
+        "sessionEnd": {
+          "type": "string",
+          "description": "Timestamp indicating when the session ended (if applicable).",
+          "format": "date-time"
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Indicates whether the session is currently active."
+        },
+        "ipAddress": {
+          "type": "string",
+          "description": "The IP address from which the session was initiated."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "sessionStart",
+        "isActive",
+        "ipAddress"
+      ]
+    },
+    "AuthenticationLog": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AuthenticationLog",
+      "type": "object",
+      "description": "Represents a log entry for authentication attempts.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the AuthenticationLog entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N AuthenticationLog)"
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Timestamp of the authentication attempt.",
+          "format": "date-time"
+        },
+        "success": {
+          "type": "boolean",
+          "description": "Indicates whether the authentication attempt was successful."
+        },
+        "method": {
+          "type": "string",
+          "description": "The method of authentication used (e.g., password, OTP)."
+        },
+        "details": {
+          "type": "string",
+          "description": "Additional details about the authentication attempt."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "timestamp",
+        "success",
+        "method"
+      ]
+    },
+    "OTP": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "OTP",
+      "type": "object",
+      "description": "Stores data related to One-Time Passwords (OTP) for MFA.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the OTP entry."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N OTP)"
+        },
+        "otpSecret": {
+          "type": "string",
+          "description": "The secret key used to generate OTPs.  Important: Handle securely!"
+        },
+        "otpType": {
+          "type": "string",
+          "description": "The type of OTP (e.g., TOTP, SMS, Email)."
+        },
+        "lastUsedAt": {
+          "type": "string",
+          "description": "Timestamp of the last time an OTP was used.",
+          "format": "date-time"
+        },
+        "attempts": {
+          "type": "number",
+          "description": "The number of incorrect OTP attempts."
+        },
+        "isVerified": {
+          "type": "boolean",
+          "description": "Indicates if OTP is already verified."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "otpSecret",
+        "otpType",
+        "lastUsedAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles. Accessible only to the user and potentially admins (admin role to be implemented via separate mechanism if required).",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/sessions/{sessionId}",
+        "definition": {
+          "entityName": "Session",
+          "schema": {
+            "$ref": "#/backend/entities/Session"
+          },
+          "description": "Stores user session data.  Accessible only to the user. Includes denormalized 'userId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "sessionId",
+              "description": "The unique identifier for the session."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/authentication_logs/{logId}",
+        "definition": {
+          "entityName": "AuthenticationLog",
+          "schema": {
+            "$ref": "#/backend/entities/AuthenticationLog"
+          },
+          "description": "Stores authentication logs for a user. Accessible only to the user and potentially admins. Includes denormalized 'userId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "logId",
+              "description": "The unique identifier for the authentication log."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/otps/{otpId}",
+        "definition": {
+          "entityName": "OTP",
+          "schema": {
+            "$ref": "#/backend/entities/OTP"
+          },
+          "description": "Stores OTP data for MFA.  Accessible only to the user. Includes denormalized 'userId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "otpId",
+              "description": "The unique identifier for the OTP entry."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support a secure authentication module, 'Guardian OS,' with a focus on authorization independence, clarity, and scalability. It uses path-based ownership for private user data and denormalization to avoid `get()` calls in security rules, ensuring atomic operations and simplifying debugging.\n\n**Authorization Independence and QAPs:**\n\n*   **`/users/{userId}`:** Stores core user information. Access is restricted to the user themselves, ensuring private data remains secure. The `userId` parameter enables path-based ownership, crucial for straightforward security rules.\n*   **`/users/{userId}/sessions/{sessionId}`:** Stores user session data. This subcollection inherits ownership from the parent `/users/{userId}` document. This path-based ownership simplifies rules and ensures only the user can access their session data.\n*   **`/users/{userId}/authentication_logs/{logId}`:** Stores authentication logs for each user. Access is limited to the user, and potentially admin roles (through a separate mechanism if needed), maintaining data privacy. Denormalizing admin role information into these documents would provide authorization independence if admin access is needed. \n*   **`/users/{userId}/otps/{otpId}`:** Stores OTP secrets and related data. The structure ensures that OTP information is associated with a specific user and protected accordingly. The `otpSecret` is handled with utmost care.\n\nThis structure facilitates secure `list` operations (QAPs) because each collection has a homogeneous security posture. We avoid mixing data with different access requirements in the same collection. This segregation makes it simpler to define and enforce security rules, ensuring that only authorized users can access specific data.\n\nBy using explicit path-based ownership (e.g., `/users/{userId}/...`), authorization rules can directly leverage the `request.auth.uid` to grant or deny access. This eliminates the need for complex `get()` calls to verify ownership, thereby promoting atomic operations and improving overall security."
+  }
+}

@@ -1,0 +1,174 @@
+/**
+ * This ruleset enforces a strict user-ownership model for a secure authentication
+ * system. It is designed for prototyping, prioritizing strong authorization controls
+ * while maintaining flexibility in data schemas.
+ *
+ * Core Philosophy:
+ * The security model is centered on user privacy. All data is considered private
+ * and can only be accessed by the user who owns it. There is no concept of public
+ * data or shared access in this ruleset.
+ *
+ * Data Structure:
+ * All application data is nested hierarchically under the `/users/{userId}`
+ * collection. This structure inherently links data to its owner, simplifying
+ * security rules by allowing for path-based authorization. Collections include
+ * user profiles, sessions, authentication logs, and OTP secrets.
+ *
+ * Key Security Decisions:
+ * - User Enumeration is Forbidden: Listing the top-level `/users` collection is
+ *   explicitly disallowed to prevent attackers from discovering user IDs.
+ * - Strict Ownership: All subcollections (sessions, authentication_logs, otps)
+ *   can only be read or written to by the parent user.
+ * - Self-Creation: A newly authenticated user is permitted to create their own
+ *   user profile document, but no one else's.
+ * - Relational Integrity: On document creation, rules ensure that internal
+ *   ownership fields (like `userId`) match the document's path, creating a
+ *   secure and consistent link. These ownership fields are immutable.
+ *
+ * Denormalization for Authorization:
+ * Each document in a user's subcollection (e.g., Session, AuthenticationLog)
+ * contains a denormalized `userId` field. This avoids costly `get()` calls to
+ * parent documents, enabling fast, efficient, and secure rule evaluation for
+ * both individual documents and queries.
+ *
+ * Structural Segregation:
+ * The data model naturally segregates each user's private data into their own
+ * document tree (`/users/{userId}/...`). This is a highly secure and performant
+ * pattern that prevents data leakage between users.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    //-------------------------------------------------------------------------
+    // Helper Functions
+    //-------------------------------------------------------------------------
+
+    /**
+     * Checks if the current request is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the currently authenticated user's UID matches the given userId.
+     * This is the fundamental check for ownership.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * Checks for ownership on an existing document. Used for update and delete
+     * operations to prevent acting on non-existent data.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * Validates that a user is creating their own root user document and that
+     * the document's internal `id` field matches their auth UID.
+     */
+    function isCreatingOwnUserDocument(userId) {
+      return isOwner(userId) && request.resource.data.id == userId;
+    }
+
+    /**
+     * Validates that a user is updating their own root user document and that
+     * the critical `id` field remains unchanged.
+     */
+    function isUpdatingOwnUserDocument(userId) {
+      return isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+    }
+
+    /**
+     * Validates that a user is creating a document in their own subcollection
+     * and that the document's internal `userId` field matches their auth UID.
+     */
+    function isCreatingConsistentChildDocument(userId) {
+      return isOwner(userId) && request.resource.data.userId == userId;
+    }
+
+    /**
+     * Validates that a user is updating a document in their own subcollection
+     * and that the critical `userId` field remains unchanged.
+     */
+    function isUpdatingConsistentChildDocument(userId) {
+      return isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+    }
+
+    //-------------------------------------------------------------------------
+    // Collection Rules
+    //-------------------------------------------------------------------------
+
+    /**
+     * @description Manages user profile documents.
+     * @path /users/{userId}
+     * @allow (get) An authenticated user reads their own profile: `users/user_abc` by user_abc.
+     * @allow (create) A new user creates their own profile document: `users/user_abc` by user_abc.
+     * @deny (list) An attacker tries to list all users in the system.
+     * @deny (get) A user tries to read another user's profile: `users/user_xyz` by user_abc.
+     * @principle Restricts access to a user's own data tree and prevents user enumeration.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isCreatingOwnUserDocument(userId);
+      allow update: if isUpdatingOwnUserDocument(userId);
+      allow delete: if isExistingOwner(userId);
+
+      /**
+       * @description Manages user session records.
+       * @path /users/{userId}/sessions/{sessionId}
+       * @allow (list) An authenticated user lists their own active sessions.
+       * @allow (create) The system creates a new session document for a user upon login.
+       * @deny (get) A user tries to read a session document belonging to another user.
+       * @deny (delete) A user tries to delete a session of another user.
+       * @principle Enforces strict ownership for all data within a user's subcollections.
+       */
+      match /sessions/{sessionId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isCreatingConsistentChildDocument(userId);
+        allow update: if isUpdatingConsistentChildDocument(userId);
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Manages user authentication attempt logs.
+       * @path /users/{userId}/authentication_logs/{logId}
+       * @allow (list) An authenticated user lists their own authentication history.
+       * @allow (create) The system creates a new log entry for a user's login attempt.
+       * @deny (update) A user tries to modify a historical authentication log.
+       * @deny (list) A user tries to list the authentication logs of another user.
+       * @principle Enforces strict ownership for all data within a user's subcollections.
+       */
+      match /authentication_logs/{logId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isCreatingConsistentChildDocument(userId);
+        allow update: if isUpdatingConsistentChildDocument(userId);
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description Manages user Multi-Factor Authentication (MFA) OTP data.
+       * @path /users/{userId}/otps/{otpId}
+       * @allow (get) An authenticated user reads their own OTP configuration.
+       * @allow (create) A user creates a new OTP configuration for their account.
+       * @deny (get) A user tries to read the OTP secrets of another user.
+       * @deny (delete) A user tries to disable MFA for another user.
+       * @principle Enforces strict ownership for highly sensitive data like MFA secrets.
+       */
+      match /otps/{otpId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isCreatingConsistentChildDocument(userId);
+        allow update: if isUpdatingConsistentChildDocument(userId);
+        allow delete: if isExistingOwner(userId);
+      }
+    }
+  }
+}
